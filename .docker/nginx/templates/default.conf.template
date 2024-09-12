@@ -1,0 +1,30 @@
+upstream faucet {
+    server python:8000;
+}
+server {
+    listen 80;
+    server_name ${SERVER_NAME};
+
+    location /assets/ {
+        alias /var/www/static/;
+    }
+
+    location /dev_assets/ {
+        alias /app/config/static/;
+    }
+
+    location /media/ {
+        alias /app/config/media/;
+    }
+
+    location / {
+        proxy_pass http://faucet;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CSRFToken $http_x_csrftoken;
+        proxy_set_header Referer $http_referer;
+        proxy_set_header Cookie $http_cookie;
+    }
+}

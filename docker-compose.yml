@@ -1,0 +1,70 @@
+version: "3.8"
+# Docker Network
+networks:
+  faucet_network:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: faucet_postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: "faucet_db"
+      POSTGRES_USER: "faucet_user"
+      POSTGRES_PASSWORD: "faucetSecertPass!"
+    networks:
+      - faucet_network
+
+  python:
+    build:
+      context: .
+      dockerfile: ./.docker/python/Dockerfile
+      args:
+        DB_HOST: "postgres"
+        DB_NAME: "faucet_db"
+        DB_USER: "faucet_user"
+        DB_PASS: "faucetSecertPass!"
+        DB_PORT: "5432"
+        WALLET_ADDRESS: ${WALLET_ADDRESS}
+        PRIVATE_KEY: ${PRIVATE_KEY}
+        PIP_DEFAULT_TIMEOUT: ${PIP_DEFAULT_TIMEOUT}
+    container_name: faucet_python
+    volumes:
+      - .:/app
+      - static_volume:/var/www/static
+      - media_volume:/app/config/media
+    ports:
+      - "8000:8000"
+    expose:
+      - 8000
+    depends_on:
+      - postgres
+    networks:
+      - faucet_network
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./.docker/nginx/Dockerfile
+    container_name: faucet_nginx
+    volumes:
+      - static_volume:/var/www/static
+      - media_volume:/app/config/media
+      - ./.docker/nginx/templates:/etc/nginx/templates
+      - ./config/static:/app/config/static
+    ports:
+      - "80:80"
+    depends_on:
+      - python
+      - postgres
+    networks:
+      - faucet_network
+
+volumes:
+  static_volume:
+  media_volume:
+  postgres_data:
